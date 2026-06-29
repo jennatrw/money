@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 자산관리</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+:root {
+  --bg: #F7F6F3;
+  --surface: #FFFFFF;
+  --surface2: #F0EEE9;
+  --border: #E4E1DA;
+  --text: #2C2A27;
+  --text-sub: #8C8880;
+  --text-light: #B5B2AB;
+  --accent-in: #7EB8A4;
+  --accent-out: #E8957A;
+  --accent-waste: #F0C674;
+  --accent-blue: #A8C5DA;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --cat1:#A8C5DA;--cat2:#B5D5C5;--cat3:#D4B8E0;--cat4:#F2C4A0;--cat5:#F4A7A7;
+  --cat6:#A7C4F4;--cat7:#C4E0A7;--cat8:#E0CFA7;--cat9:#D4A7C4;--cat10:#A7D4C4;--cat11:#C8C8C8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Apple SD Gothic Neo','Noto Sans KR',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+/* ── MAIN NAV ── */
+.main-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 300;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1; padding: 8px 2px 10px;
+  background: none; border: none;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; color: var(--text-light);
+  font-size: 9px; font-weight: 600; letter-spacing: 0.2px;
+  transition: color 0.15s;
+}
+.nav-btn .nav-icon { font-size: 20px; line-height: 1; }
+.nav-btn.active { color: var(--text); }
+
+/* ── PAGE WRAPPER ── */
+.app { max-width: 480px; margin: 0 auto; padding: 0 0 100px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── HEADER ── */
+.page-header {
+  padding: 20px 20px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.page-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.page-title span { color: var(--accent-in); }
+.icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: var(--text-sub); }
+
+/* ── SECTION LABEL ── */
+.section-label {
+  font-size: 11px; font-weight: 700; color: var(--text-light);
+  letter-spacing: 0.5px; padding: 16px 20px 6px;
+}
+
+/* ── CARDS ── */
+.card-row { display: grid; gap: 8px; padding: 0 20px; }
+.card-row.cols2 { grid-template-columns: 1fr 1fr; }
+.card-row.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+.card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px 12px; border: 1px solid var(--border);
+}
+.card-label { font-size: 11px; color: var(--text-sub); margin-bottom: 4px; }
+.card-value { font-size: 15px; font-weight: 700; line-height: 1.2; }
+.card-value.green { color: var(--accent-in); }
+.card-value.red { color: var(--accent-out); }
+.card-value.blue { color: var(--accent-blue); }
+
+/* ── CHART WRAP ── */
+.chart-wrap {
+  margin: 12px 20px 0;
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 16px;
+}
+.chart-title { font-size: 12px; font-weight: 600; color: var(--text-sub); margin-bottom: 12px; letter-spacing: 0.5px; }
+.chart-inner { position: relative; height: 260px; }
+.chart-legend { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-sub); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── TABLE (공통) ── */
+.tbl-wrap { margin: 0 20px; overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th {
+  text-align: left; padding: 8px 10px;
+  color: var(--text-sub); font-weight: 600; font-size: 11px;
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 10px 10px; border-bottom: 1px solid var(--surface2);
+  vertical-align: middle;
+}
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr.sum-row td {
+  font-weight: 700; font-size: 12px;
+  border-top: 1.5px solid var(--border);
+  background: var(--surface2); color: var(--text-sub);
+}
+.tbl tr { cursor: pointer; transition: background 0.1s; }
+.tbl tr:hover td { background: var(--surface2); }
+.tbl tr.sum-row { cursor: default; }
+.tbl tr.sum-row:hover td { background: var(--surface2); }
+
+.tbl-card {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); overflow: hidden;
+}
+
+/* ── BADGE ── */
+.badge {
+  display: inline-block; padding: 2px 7px;
+  border-radius: 20px; font-size: 10px; font-weight: 700;
+}
+.badge.green { background: #E6F5F0; color: #4A9B84; }
+.badge.red { background: #FCF0EC; color: #C4624A; }
+.badge.blue { background: #EAF2F8; color: #5A8FA8; }
+.badge.yellow { background: #FFF8E6; color: #B8922A; }
+.badge.gray { background: var(--surface2); color: var(--text-sub); }
+
+.dday-badge {
+  display: inline-block; padding: 1px 6px;
+  border-radius: 4px; font-size: 10px; font-weight: 700;
+}
+.dday-badge.urgent { background: #FCF0EC; color: var(--accent-out); }
+.dday-badge.soon { background: #FFF8E6; color: #B8922A; }
+.dday-badge.ok { background: #E6F5F0; color: #4A9B84; }
+
+/* ── FAB ── */
+.fab-wrap { display: flex; justify-content: center; padding: 16px 0 8px; }
+.fab {
+  width: 52px; height: 52px; background: var(--text); color: #fff;
+  font-size: 28px; border: none; border-radius: 50%;
+  cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, background 0.15s;
+}
+.fab:hover { background: #444; transform: scale(1.07); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35); z-index: 400;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 20px;
+  padding: 20px 20px 28px;
+  width: 100%; max-width: 440px;
+  max-height: 90vh; overflow-y: auto;
+  animation: fadeScale 0.2s ease;
+}
+@keyframes fadeScale { from { transform:scale(0.95);opacity:0; } to { transform:scale(1);opacity:1; } }
+.modal-title {
+  font-size: 16px; font-weight: 700; margin-bottom: 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-close { background: none; border: none; font-size: 20px; color: var(--text-sub); cursor: pointer; }
+
+/* ── FORM FIELDS ── */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); margin-bottom: 5px; letter-spacing: 0.3px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 11px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); font-size: 14px; font-family: inherit; color: var(--text);
+  outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--text); }
+.field textarea { resize: none; height: 60px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.btn-save {
+  width: 100%; padding: 14px; background: var(--text); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px;
+  transition: background 0.15s;
+}
+.btn-save:hover { background: #444; }
+.btn-delete {
+  width: 100%; padding: 11px; background: none; color: var(--accent-out);
+  border: 1.5px solid var(--accent-out); border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px;
+  transition: all 0.15s;
+}
+.btn-delete:hover { background: var(--accent-out); color: #fff; }
+
+/* ── TYPE TOGGLE ── */
+.type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+.type-toggle button {
+  flex: 1; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; color: var(--text-sub);
+}
+.type-toggle button.active.expense { background: var(--accent-out); border-color: var(--accent-out); color: #fff; }
+.type-toggle button.active.income { background: var(--accent-in); border-color: var(--accent-in); color: #fff; }
+
+/* ── WASTE CHECK ── */
+.waste-check {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); cursor: pointer; margin-bottom: 12px; transition: border-color 0.15s;
+}
+.waste-check.checked { border-color: var(--accent-waste); background: #FFF9EC; }
+.waste-check input { display: none; }
+.waste-check-box {
+  width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #fff; flex-shrink: 0; transition: all 0.15s;
+}
+.waste-check.checked .waste-check-box { background: var(--accent-waste); border-color: var(--accent-waste); }
+.waste-check-label { font-size: 13px; font-weight: 500; }
+
+/* ── PERIOD NAV ── */
+.period-nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; }
+.period-nav button {
+  width: 32px; height: 32px; border: 1.5px solid var(--border); border-radius: 50%;
+  background: var(--surface); cursor: pointer; font-size: 16px; color: var(--text-sub);
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.period-nav button:hover { border-color: var(--text); color: var(--text); }
+.period-label { font-size: 15px; font-weight: 700; }
+
+/* ── VIEW TABS (가계부 내부) ── */
+.view-tabs { display: flex; gap: 6px; padding: 16px 20px 0; }
+.view-tabs button {
+  flex: 1; padding: 9px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-sub); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.view-tabs button.active { background: var(--text); border-color: var(--text); color: #fff; }
+
+/* ── ENTRY LIST ── */
+.list-section { padding: 8px 20px 0; }
+.list-date-group { margin-bottom: 4px; }
+.list-date-label { font-size: 11px; font-weight: 700; color: var(--text-light); padding: 8px 2px 4px; }
+.entry-row {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 11px 12px; display: flex; align-items: center; gap: 10px;
+  margin-bottom: 6px; cursor: pointer; transition: border-color 0.1s;
+}
+.entry-row:hover { border-color: var(--text-sub); }
+.entry-cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.entry-info { flex: 1; min-width: 0; }
+.entry-cat { font-size: 12px; color: var(--text-sub); }
+.entry-memo { font-size: 13px; font-weight: 500; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-right { text-align: right; flex-shrink: 0; }
+.entry-amount { font-size: 14px; font-weight: 700; }
+.entry-amount.income { color: var(--accent-in); }
+.entry-amount.expense { color: var(--accent-out); }
+.waste-badge { font-size: 10px; background: var(--accent-waste); color: #fff; border-radius: 4px; padding: 1px 5px; margin-top: 2px; display: inline-block; }
+
+.waste-bar {
+  margin: 10px 20px 0; background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 12px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.waste-text { font-size: 13px; }
+.waste-text strong { color: var(--accent-waste); }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 13px; }
+.empty-state .emoji { font-size: 32px; margin-bottom: 10px; }
+
+/* ── CAT SETTINGS ── */
+.cat-list { list-style: none; }
+.cat-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--surface2); }
+.cat-item input { flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 13px; font-family: inherit; background: var(--bg); outline: none; }
+.cat-item input:focus { border-color: var(--text); }
+.cat-del { background: none; border: none; color: var(--text-light); font-size: 18px; cursor: pointer; flex-shrink: 0; padding: 0 4px; transition: color 0.15s; }
+.cat-del:hover { color: var(--accent-out); }
+.btn-add-cat { margin-top: 10px; width: 100%; padding: 9px; background: none; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); color: var(--text-sub); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.btn-add-cat:hover { border-color: var(--text-sub); color: var(--text); }
+.cat-section-title { font-size: 11px; font-weight: 700; color: var(--text-light); letter-spacing: 0.5px; margin: 14px 0 6px; }
+
+/* ── 자산현황 specific ── */
+.net-worth-card {
+  margin: 16px 20px 0;
+  background: var(--text); border-radius: var(--radius);
+  padding: 20px; color: #fff;
+}
+.net-worth-label { font-size: 12px; opacity: 0.6; margin-bottom: 6px; }
+.net-worth-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.net-worth-sub { font-size: 12px; opacity: 0.5; margin-top: 6px; }
+
+.asset-edit-btn {
+  display: block; width: calc(100% - 40px); margin: 12px 20px 0;
+  padding: 11px; background: none;
+  border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+  color: var(--text-sub); font-size: 13px; cursor: pointer; transition: all 0.15s;
+}
+.asset-edit-btn:hover { border-color: var(--text-sub); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ════════════════════════════════
+     TAB 1: 자산현황
+════════════════════════════════ -->
+<div class="page active" id="page-assets">
+  <div class="page-header">
+    <div class="page-title">내 <span>자산</span></div>
+    <button class="icon-btn" onclick="openAssetEdit()" style="font-size:13px;font-weight:700;color:var(--text-sub);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:6px 12px;background:var(--surface)">수정</button>
+  </div>
+
+  <!-- 순자산 카드 -->
+  <div class="net-worth-card">
+    <div class="net-worth-label">순자산 (자산 - 부채)</div>
+    <div class="net-worth-value" id="net-worth-value">0원</div>
+    <div class="net-worth-sub" id="net-worth-sub">자산 0원 · 부채 0원</div>
+  </div>
+
+  <!-- 도넛 차트 -->
+  <div class="chart-wrap">
+    <div class="chart-title">자산 구성</div>
+    <div class="chart-inner"><canvas id="asset-chart"></canvas></div>
+    <div class="chart-legend" id="asset-legend"></div>
+  </div>
+
+  <!-- 자산 항목 카드 -->
+  <div class="section-label">자산</div>
+  <div class="card-row cols2" id="asset-cards"></div>
+
+  <div class="section-label">부채</div>
+  <div class="card-row cols2" id="debt-cards"></div>
+</div>
+
+
+<!-- ════════════════════════════════
+     TAB 2: 가계부
+════════════════════════════════ -->
+<div class="page" id="page-ledger">
+  <div class="page-header">
+    <div class="page-title">가<span>계</span>부</div>
+    <button class="icon-btn" onclick="openSettings()">⚙️</button>
+  </div>
+
+  <div class="view-tabs">
+    <button id="tab-weekly" onclick="setView('weekly')">주간</button>
+    <button id="tab-monthly" onclick="setView('monthly')">월간</button>
+  </div>
+
+  <div class="period-nav">
+    <button onclick="movePeriod(-1)">‹</button>
+    <div class="period-label" id="period-label"></div>
+    <button onclick="movePeriod(1)">›</button>
+  </div>
+
+  <div class="card-row cols3">
+    <div class="card"><div class="card-label">수입</div><div class="card-value green" id="sum-income">0</div></div>
+    <div class="card"><div class="card-label">지출</div><div class="card-value red" id="sum-expense">0</div></div>
+    <div class="card"><div class="card-label">잔액</div><div class="card-value" id="sum-balance">0</div></div>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="chart-title">카테고리별 지출</div>
+    <div class="chart-inner"><canvas id="donut-chart"></canvas></div>
+    <div class="chart-legend" id="chart-legend"></div>
+  </div>
+
+  <div class="waste-bar" id="waste-bar" style="display:none">
+    <span style="font-size:18px">💸</span>
+    <div class="waste-text">낭비 지출 <strong id="waste-total">0원</strong></div>
+  </div>
+
+  <div class="fab-wrap">
+    <button class="fab" onclick="openEntryModal()">+</button>
+  </div>
+
+  <div class="list-section" id="entry-list"></div>
+</div>
+
+
+<!-- ════════════════════════════════
+     TAB 3: 예적금
+════════════════════════════════ -->
+<div class="page" id="page-savings">
+  <div class="page-header">
+    <div class="page-title">예<span>적</span>금</div>
+    <button class="icon-btn" onclick="openSavingsModal()">+</button>
+  </div>
+
+  <div class="section-label">적금</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="savings-installment-tbl"></table>
+    </div>
+  </div>
+
+  <div class="section-label">예금</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="savings-deposit-tbl"></table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════
+     TAB 4: 대출
+════════════════════════════════ -->
+<div class="page" id="page-loans">
+  <div class="page-header">
+    <div class="page-title">대<span>출</span></div>
+    <button class="icon-btn" onclick="openLoanModal()">+</button>
+  </div>
+
+  <div class="section-label">대출 현황</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="loans-tbl"></table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════
+     TAB 5: 주식·ETF
+════════════════════════════════ -->
+<div class="page" id="page-invest">
+  <div class="page-header">
+    <div class="page-title">투<span>자</span></div>
+    <button class="icon-btn" onclick="openInvestModal()">+</button>
+  </div>
+
+  <div class="section-label">월별 투자 흐름</div>
+  <div class="chart-wrap">
+    <div class="chart-title">총 평가금액 추이</div>
+    <div class="chart-inner" style="height:200px"><canvas id="invest-chart"></canvas></div>
+  </div>
+
+  <div class="section-label">월별 기록</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="invest-tbl"></table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════
+     TAB 6: 부동산
+════════════════════════════════ -->
+<div class="page" id="page-realty">
+  <div class="page-header">
+    <div class="page-title">부<span>동</span>산</div>
+    <button class="icon-btn" onclick="openRealtyModal()">+</button>
+  </div>
+
+  <div class="section-label">현재 거주 · 계약</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="realty-current-tbl"></table>
+    </div>
+  </div>
+
+  <div class="section-label">온라인 임장</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="realty-scout-tbl"></table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════
+     TAB 7: 보험·연금
+════════════════════════════════ -->
+<div class="page" id="page-insurance">
+  <div class="page-header">
+    <div class="page-title">보험<span>·</span>연금</div>
+    <button class="icon-btn" onclick="openInsuranceModal()">+</button>
+  </div>
+
+  <div class="section-label">보험</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="insurance-tbl"></table>
+    </div>
+  </div>
+
+  <div class="section-label">연금</div>
+  <div style="margin:0 20px">
+    <div class="tbl-card">
+      <table class="tbl" id="pension-tbl"></table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- ── BOTTOM NAV ── -->
+<nav class="main-nav">
+  <button class="nav-btn active" id="nav-assets" onclick="switchTab('assets')">
+    <span class="nav-icon">📊</span>자산현황
+  </button>
+  <button class="nav-btn" id="nav-ledger" onclick="switchTab('ledger')">
+    <span class="nav-icon">📒</span>가계부
+  </button>
+  <button class="nav-btn" id="nav-savings" onclick="switchTab('savings')">
+    <span class="nav-icon">🏦</span>예적금
+  </button>
+  <button class="nav-btn" id="nav-loans" onclick="switchTab('loans')">
+    <span class="nav-icon">💳</span>대출
+  </button>
+  <button class="nav-btn" id="nav-invest" onclick="switchTab('invest')">
+    <span class="nav-icon">📈</span>투자
+  </button>
+  <button class="nav-btn" id="nav-realty" onclick="switchTab('realty')">
+    <span class="nav-icon">🏠</span>부동산
+  </button>
+  <button class="nav-btn" id="nav-insurance" onclick="switchTab('insurance')">
+    <span class="nav-icon">🛡️</span>보험·연금
+  </button>
+</nav>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- 가계부 입력 -->
+<div class="modal-overlay" id="entry-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="entry-modal-title">새 항목</span>
+      <button class="modal-close" onclick="closeEntryModal()">✕</button>
+    </div>
+    <div class="type-toggle">
+      <button id="type-expense" class="active expense" onclick="setEntryType('expense')">지출</button>
+      <button id="type-income" onclick="setEntryType('income')">수입</button>
+    </div>
+    <div class="field"><label>날짜</label><input type="date" id="f-date"></div>
+    <div class="field"><label>카테고리</label><select id="f-cat"></select></div>
+    <div class="field"><label>금액 (원)</label><input type="number" id="f-amount" placeholder="0" inputmode="numeric"></div>
+    <div class="field"><label>메모</label><textarea id="f-memo" placeholder="선택 입력"></textarea></div>
+    <div class="waste-check" id="waste-check-wrap" onclick="toggleWaste()">
+      <input type="checkbox" id="f-waste">
+      <div class="waste-check-box" id="waste-check-box"></div>
+      <div class="waste-check-label">낭비한 지출이에요</div>
+    </div>
+    <button class="btn-save" onclick="saveEntry()">저장</button>
+    <button class="btn-delete" id="entry-btn-delete" style="display:none" onclick="deleteEntry()">삭제</button>
+  </div>
+</div>
+
+<!-- 카테고리 설정 -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <div class="modal-title">카테고리 설정<button class="modal-close" onclick="closeSettings()">✕</button></div>
+    <div class="cat-section-title">지출</div>
+    <ul class="cat-list" id="cat-expense-list"></ul>
+    <button class="btn-add-cat" onclick="addCat('expense')">+ 지출 카테고리 추가</button>
+    <div class="cat-section-title">수입</div>
+    <ul class="cat-list" id="cat-income-list"></ul>
+    <button class="btn-add-cat" onclick="addCat('income')">+ 수입 카테고리 추가</button>
+    <button class="btn-save" style="margin-top:16px" onclick="saveSettings()">저장</button>
+  </div>
+</div>
+
+<!-- 자산현황 수정 -->
+<div class="modal-overlay" id="asset-modal">
+  <div class="modal">
+    <div class="modal-title">자산 수정<button class="modal-close" onclick="closeAssetEdit()">✕</button></div>
+    <div class="cat-section-title">자산 (원)</div>
+    <div class="field-row">
+      <div class="field"><label>현금·입출금</label><input type="number" id="a-cash" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>예적금</label><input type="number" id="a-savings" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>투자·주식</label><input type="number" id="a-invest" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>부동산 보증금</label><input type="number" id="a-realty" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field"><label>기타 자산</label><input type="number" id="a-other" inputmode="numeric" placeholder="0"></div>
+    <div class="cat-section-title">부채 (원)</div>
+    <div class="field-row">
+      <div class="field"><label>대출 잔액</label><input type="number" id="d-loan" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>기타 부채</label><input type="number" id="d-other" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <button class="btn-save" onclick="saveAssets()">저장</button>
+  </div>
+</div>
+
+<!-- 예적금 입력 -->
+<div class="modal-overlay" id="savings-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="savings-modal-title">예적금 추가</span><button class="modal-close" onclick="closeSavingsModal()">✕</button></div>
+    <div class="type-toggle">
+      <button id="stype-installment" class="active expense" onclick="setSavingsType('installment')">적금</button>
+      <button id="stype-deposit" onclick="setSavingsType('deposit')">예금</button>
+    </div>
+    <div class="field"><label>상품명</label><input type="text" id="s-name" placeholder="예) KB Star 정기예금"></div>
+    <div class="field"><label>은행명</label><input type="text" id="s-bank" placeholder="예) 국민은행"></div>
+    <div class="field-row">
+      <div class="field"><label id="s-amount-label">월 납입액 (원)</label><input type="number" id="s-amount" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>이자율 (%)</label><input type="number" id="s-rate" inputmode="decimal" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>개설일</label><input type="date" id="s-start"></div>
+      <div class="field"><label>만기일</label><input type="date" id="s-end"></div>
+    </div>
+    <div class="field"><label>저축 목표</label><input type="text" id="s-goal" placeholder="예) 여행자금, 비상금"></div>
+    <div class="field"><label>메모</label><textarea id="s-memo" placeholder="선택 입력"></textarea></div>
+    <button class="btn-save" onclick="saveSavings()">저장</button>
+    <button class="btn-delete" id="savings-btn-delete" style="display:none" onclick="deleteSavings()">삭제</button>
+  </div>
+</div>
+
+<!-- 대출 입력 -->
+<div class="modal-overlay" id="loan-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="loan-modal-title">대출 추가</span><button class="modal-close" onclick="closeLoanModal()">✕</button></div>
+    <div class="field"><label>상품명</label><input type="text" id="l-name" placeholder="예) 중도금대출 1"></div>
+    <div class="field"><label>대출 상품 유형</label><input type="text" id="l-type" placeholder="예) 중도금대출, 전세대출"></div>
+    <div class="field-row">
+      <div class="field"><label>대출 원금 (원)</label><input type="number" id="l-principal" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>잔여 원금 (원)</label><input type="number" id="l-balance" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>금리 (%)</label><input type="number" id="l-rate" inputmode="decimal" placeholder="0.0" step="0.1"></div>
+      <div class="field"><label>월 상환액 (원)</label><input type="number" id="l-monthly" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field"><label>상환방식</label>
+      <select id="l-repay">
+        <option>만기 일시상환</option>
+        <option>원리금균등상환</option>
+        <option>원금균등상환</option>
+        <option>거치 후 상환</option>
+      </select>
+    </div>
+    <div class="field"><label>메모</label><textarea id="l-memo" placeholder="선택 입력"></textarea></div>
+    <button class="btn-save" onclick="saveLoan()">저장</button>
+    <button class="btn-delete" id="loan-btn-delete" style="display:none" onclick="deleteLoan()">삭제</button>
+  </div>
+</div>
+
+<!-- 투자 입력 -->
+<div class="modal-overlay" id="invest-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="invest-modal-title">월말 투자 기록</span><button class="modal-close" onclick="closeInvestModal()">✕</button></div>
+    <div class="field"><label>기준 연월</label><input type="month" id="i-month"></div>
+    <div class="field"><label>총 평가금액 (원)</label><input type="number" id="i-value" inputmode="numeric" placeholder="0"></div>
+    <div class="field"><label>메모</label><textarea id="i-memo" placeholder="예) 주요 보유 종목 등"></textarea></div>
+    <button class="btn-save" onclick="saveInvest()">저장</button>
+    <button class="btn-delete" id="invest-btn-delete" style="display:none" onclick="deleteInvest()">삭제</button>
+  </div>
+</div>
+
+<!-- 부동산 입력 -->
+<div class="modal-overlay" id="realty-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="realty-modal-title">부동산 추가</span><button class="modal-close" onclick="closeRealtyModal()">✕</button></div>
+    <div class="type-toggle">
+      <button id="rtype-current" class="active expense" onclick="setRealtyType('current')">거주·계약</button>
+      <button id="rtype-scout" onclick="setRealtyType('scout')">온라인 임장</button>
+    </div>
+    <div class="field"><label>주소</label><input type="text" id="r-addr" placeholder="예) 강남구 OO동 1110"></div>
+    <div class="field-row">
+      <div class="field"><label>유형</label>
+        <select id="r-type">
+          <option>아파트</option><option>오피스텔</option><option>빌라</option>
+          <option>단독주택</option><option>상가</option><option>기타</option>
+        </select>
+      </div>
+      <div class="field"><label>계약형태</label>
+        <select id="r-contract">
+          <option>전세</option><option>월세</option><option>매매</option><option>기타</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>보증금 (원)</label><input type="number" id="r-deposit" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>월세 (원)</label><input type="number" id="r-monthly" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>평형</label><input type="text" id="r-size" placeholder="예) 24평"></div>
+      <div class="field"><label>입주예정일</label><input type="date" id="r-movein"></div>
+    </div>
+    <div class="field"><label>메모</label><textarea id="r-memo" placeholder="장단점, 교통, 주변환경 등"></textarea></div>
+    <button class="btn-save" onclick="saveRealty()">저장</button>
+    <button class="btn-delete" id="realty-btn-delete" style="display:none" onclick="deleteRealty()">삭제</button>
+  </div>
+</div>
+
+<!-- 보험·연금 입력 -->
+<div class="modal-overlay" id="insurance-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="insurance-modal-title">보험·연금 추가</span><button class="modal-close" onclick="closeInsuranceModal()">✕</button></div>
+    <div class="type-toggle">
+      <button id="itype-insurance" class="active expense" onclick="setInsuranceType('insurance')">보험</button>
+      <button id="itype-pension" onclick="setInsuranceType('pension')">연금</button>
+    </div>
+    <div class="field"><label>상품명</label><input type="text" id="ins-name" placeholder="예) 삼성생명 CI보험"></div>
+    <div class="field"><label>기관명</label><input type="text" id="ins-org" placeholder="예) 삼성생명"></div>
+    <div class="field-row">
+      <div class="field"><label>계약일</label><input type="date" id="ins-start"></div>
+      <div class="field"><label>만기일</label><input type="date" id="ins-end"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>월 납입액 (원)</label><input type="number" id="ins-monthly" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>납입기간 (년)</label><input type="number" id="ins-period" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field" id="ins-coverage-field"><label>보장금액</label><input type="text" id="ins-coverage" placeholder="예) 중대한암 1억, 사망 8천만원"></div>
+    <div class="field" id="ins-receive-field" style="display:none"><label>월 예상 수령액 (원)</label><input type="number" id="ins-receive" inputmode="numeric" placeholder="0"></div>
+    <div class="field"><label>계약상태</label>
+      <select id="ins-status">
+        <option>납입중</option><option>납입완료</option><option>해지</option><option>적립중</option>
+      </select>
+    </div>
+    <div class="field"><label>메모 / 특약</label><textarea id="ins-memo" placeholder="선택 입력"></textarea></div>
+    <button class="btn-save" onclick="saveInsurance()">저장</button>
+    <button class="btn-delete" id="insurance-btn-delete" style="display:none" onclick="deleteInsurance()">삭제</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════
+// UTILS
+// ══════════════════════════════════
+const fmt = n => Number(n||0).toLocaleString('ko-KR');
+const today = () => new Date().toISOString().slice(0,10);
+const thisMonth = () => new Date().toISOString().slice(0,7);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const fmtDate = (d, type) => {
+  const days = ['일','월','화','수','목','금','토'];
+  if (type==='md') return `${d.getMonth()+1}/${d.getDate()}`;
+  if (type==='full') return `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  return d.toLocaleDateString('ko-KR');
+};
+
+function dday(dateStr) {
+  if (!dateStr) return null;
+  const diff = Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+  return diff;
+}
+function ddayBadge(dateStr) {
+  if (!dateStr) return '';
+  const d = dday(dateStr);
+  if (d < 0) return `<span class="dday-badge gray">만기</span>`;
+  if (d <= 30) return `<span class="dday-badge urgent">D-${d}</span>`;
+  if (d <= 90) return `<span class="dday-badge soon">D-${d}</span>`;
+  return `<span class="dday-badge ok">D-${d}</span>`;
+}
+
+// ── localStorage helpers ──
+const LS = {
+  get: k => JSON.parse(localStorage.getItem(k) || 'null'),
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+};
+
+// ══════════════════════════════════
+// TAB NAVIGATION
+// ══════════════════════════════════
+let currentTab = 'assets';
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('nav-' + tab).classList.add('active');
+  currentTab = tab;
+  if (tab === 'assets') renderAssets();
+  if (tab === 'ledger') renderLedger();
+  if (tab === 'savings') renderSavings();
+  if (tab === 'loans') renderLoans();
+  if (tab === 'invest') renderInvest();
+  if (tab === 'realty') renderRealty();
+  if (tab === 'insurance') renderInsurance();
+}
+
+// close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ══════════════════════════════════
+// TAB 1: 자산현황
+// ══════════════════════════════════
+const ASSET_KEYS = ['cash','savings','invest','realty','other'];
+const ASSET_LABELS = ['현금·입출금','예적금','투자·주식','부동산 보증금','기타 자산'];
+const ASSET_COLORS = ['#A8C5DA','#B5D5C5','#D4B8E0','#F2C4A0','#C8C8C8'];
+const DEBT_KEYS = ['loan','other'];
+const DEBT_LABELS = ['대출 잔액','기타 부채'];
+
+let assetChart = null;
+
+function loadAssets() {
+  return LS.get('asset_data') || { cash:0, savings:0, invest:0, realty:0, other:0, loan:0, dother:0 };
+}
+
+function renderAssets() {
+  const d = loadAssets();
+  const totalAsset = ASSET_KEYS.reduce((s,k) => s + (d[k]||0), 0);
+  const totalDebt = (d.loan||0) + (d.dother||0);
+  const net = totalAsset - totalDebt;
+
+  document.getElementById('net-worth-value').textContent = fmt(net) + '원';
+  document.getElementById('net-worth-sub').textContent = `자산 ${fmt(totalAsset)}원 · 부채 ${fmt(totalDebt)}원`;
+
+  // 자산 카드
+  document.getElementById('asset-cards').innerHTML = ASSET_KEYS.map((k,i) =>
+    `<div class="card"><div class="card-label">${ASSET_LABELS[i]}</div><div class="card-value">${fmt(d[k]||0)}원</div></div>`
+  ).join('');
+
+  // 부채 카드
+  document.getElementById('debt-cards').innerHTML =
+    `<div class="card"><div class="card-label">대출 잔액</div><div class="card-value red">${fmt(d.loan||0)}원</div></div>` +
+    `<div class="card"><div class="card-label">기타 부채</div><div class="card-value red">${fmt(d.dother||0)}원</div></div>`;
+
+  // 도넛 차트
+  const ctx = document.getElementById('asset-chart').getContext('2d');
+  if (assetChart) assetChart.destroy();
+  const chartData = ASSET_KEYS.map(k => d[k]||0).filter((_,i) => ASSET_KEYS[i]);
+  if (totalAsset === 0) {
+    document.getElementById('asset-legend').innerHTML = '<span style="color:var(--text-light);font-size:12px">자산을 입력해 주세요</span>';
+    return;
+  }
+  assetChart = new Chart(ctx, {
+    type: 'doughnut',
+    plugins: [ChartDataLabels],
+    data: {
+      labels: ASSET_LABELS,
+      datasets: [{ data: ASSET_KEYS.map(k=>d[k]||0), backgroundColor: ASSET_COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      layout: { padding: 50 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+        datalabels: {
+          display: ctx => (ctx.dataset.data[ctx.dataIndex] / totalAsset) >= 0.05,
+          anchor: 'end', align: 'end', offset: 8,
+          formatter: (value, ctx) => {
+            const pct = Math.round(value / totalAsset * 100);
+            return `${ASSET_LABELS[ctx.dataIndex]}\n${fmt(value)}원 (${pct}%)`;
+          },
+          font: { size: 11, family: "'Apple SD Gothic Neo','Noto Sans KR',sans-serif" },
+          color: '#2C2A27', textAlign: 'center',
+        }
+      }
+    }
+  });
+  document.getElementById('asset-legend').innerHTML = ASSET_LABELS.map((l,i) =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${ASSET_COLORS[i]}"></div>${l}</div>`
+  ).join('');
+}
+
+function openAssetEdit() {
+  const d = loadAssets();
+  ['cash','savings','invest','realty','other'].forEach(k => {
+    document.getElementById('a-'+k).value = d[k]||'';
+  });
+  document.getElementById('d-loan').value = d.loan||'';
+  document.getElementById('d-other').value = d.dother||'';
+  document.getElementById('asset-modal').classList.add('open');
+}
+function closeAssetEdit() { document.getElementById('asset-modal').classList.remove('open'); }
+function saveAssets() {
+  const d = {
+    cash: +document.getElementById('a-cash').value||0,
+    savings: +document.getElementById('a-savings').value||0,
+    invest: +document.getElementById('a-invest').value||0,
+    realty: +document.getElementById('a-realty').value||0,
+    other: +document.getElementById('a-other').value||0,
+    loan: +document.getElementById('d-loan').value||0,
+    dother: +document.getElementById('d-other').value||0,
+  };
+  LS.set('asset_data', d);
+  closeAssetEdit();
+  renderAssets();
+}
+
+// ══════════════════════════════════
+// TAB 2: 가계부
+// ══════════════════════════════════
+const CAT_COLORS = ['#A8C5DA','#B5D5C5','#D4B8E0','#F2C4A0','#F4A7A7','#A7C4F4','#C4E0A7','#E0CFA7','#D4A7C4','#A7D4C4','#C8C8C8'];
+const DEFAULT_CATS = {
+  expense: ['식비','교통','주거·통신','문화·여가','의료','쇼핑','반려견','소비성적금','예적금·청약','보험·연금','기타'],
+  income: ['급여','부업','기타']
+};
+
+let ledgerView = 'weekly';
+let ledgerOffset = 0;
+let editingEntryId = null;
+let currentEntryType = 'expense';
+let donutChart = null;
+
+function loadEntries() { return LS.get('kakeibo_entries') || []; }
+function saveEntries(v) { LS.set('kakeibo_entries', v); }
+function loadCats() { return LS.get('kakeibo_cats') || JSON.parse(JSON.stringify(DEFAULT_CATS)); }
+function saveCats(v) { LS.set('kakeibo_cats', v); }
+
+function setView(v) {
+  ledgerView = v; ledgerOffset = 0;
+  document.getElementById('tab-weekly').className = v==='weekly'?'active':'';
+  document.getElementById('tab-monthly').className = v==='monthly'?'active':'';
+  renderLedger();
+}
+function movePeriod(dir) { ledgerOffset += dir; renderLedger(); }
+
+function getPeriodEntries() {
+  const entries = loadEntries();
+  const now = new Date();
+  if (ledgerView === 'weekly') {
+    const dow = now.getDay();
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - (dow===0?6:dow-1) + ledgerOffset*7);
+    mon.setHours(0,0,0,0);
+    const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+    return { entries: entries.filter(e=>{ const d=new Date(e.date); return d>=mon&&d<=sun; }), label: `${fmtDate(mon,'md')} – ${fmtDate(sun,'md')}` };
+  } else {
+    const target = new Date(now.getFullYear(), now.getMonth()+ledgerOffset, 1);
+    const start = new Date(target.getFullYear(), target.getMonth(), 1);
+    const end = new Date(target.getFullYear(), target.getMonth()+1, 0, 23,59,59,999);
+    return { entries: entries.filter(e=>{ const d=new Date(e.date); return d>=start&&d<=end; }), label: `${target.getFullYear()}년 ${target.getMonth()+1}월` };
+  }
+}
+
+function renderLedger() {
+  const { entries, label } = getPeriodEntries();
+  document.getElementById('period-label').textContent = label;
+  const income = entries.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
+  const expense = entries.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
+  const balance = income - expense;
+  document.getElementById('sum-income').textContent = fmt(income);
+  document.getElementById('sum-expense').textContent = fmt(expense);
+  const balEl = document.getElementById('sum-balance');
+  balEl.textContent = fmt(Math.abs(balance));
+  balEl.style.color = balance>=0?'var(--accent-in)':'var(--accent-out)';
+  renderDonut(entries);
+  const wasteTotal = entries.filter(e=>e.type==='expense'&&e.waste).reduce((s,e)=>s+e.amount,0);
+  const wb = document.getElementById('waste-bar');
+  if (wasteTotal>0) { wb.style.display='flex'; document.getElementById('waste-total').textContent=fmt(wasteTotal)+'원'; }
+  else wb.style.display='none';
+  renderEntryList(entries);
+}
+
+function renderDonut(entries) {
+  const cats = loadCats();
+  const catMap = {};
+  entries.filter(e=>e.type==='expense').forEach(e => { catMap[e.category]=(catMap[e.category]||0)+e.amount; });
+  const labels = Object.keys(catMap), data = Object.values(catMap);
+  const colors = labels.map((l,i) => { const idx=cats.expense.indexOf(l); return CAT_COLORS[idx>=0?idx%CAT_COLORS.length:i%CAT_COLORS.length]; });
+  const ctx = document.getElementById('donut-chart').getContext('2d');
+  if (donutChart) donutChart.destroy();
+  if (!data.length) { donutChart=null; document.getElementById('chart-legend').innerHTML='<span style="color:var(--text-light);font-size:12px">지출 내역이 없어요</span>'; return; }
+  const total = data.reduce((s,v)=>s+v,0);
+  donutChart = new Chart(ctx, {
+    type:'doughnut', plugins:[ChartDataLabels],
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:2, borderColor:'#fff', hoverOffset:6 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'60%', layout:{padding:50},
+      plugins:{
+        legend:{display:false}, tooltip:{enabled:false},
+        datalabels:{
+          display: ctx=>(ctx.dataset.data[ctx.dataIndex]/total)>=0.05,
+          anchor:'end', align:'end', offset:8,
+          formatter:(value,ctx)=>{ const pct=Math.round(value/total*100); return `${ctx.chart.data.labels[ctx.dataIndex]}\n${fmt(value)}원 (${pct}%)`; },
+          font:{size:11,family:"'Apple SD Gothic Neo','Noto Sans KR',sans-serif"}, color:'#2C2A27', textAlign:'center',
+        }
+      }
+    }
+  });
+  document.getElementById('chart-legend').innerHTML = labels.map((l,i)=>`<div class="legend-item"><div class="legend-dot" style="background:${colors[i]}"></div>${l}</div>`).join('');
+}
+
+function renderEntryList(entries) {
+  const list = document.getElementById('entry-list');
+  if (!entries.length) { list.innerHTML=`<div class="empty-state"><div class="emoji">📭</div>이 기간 내역이 없어요</div>`; return; }
+  const sorted = [...entries].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const grouped = {};
+  sorted.forEach(e=>{ if(!grouped[e.date])grouped[e.date]=[]; grouped[e.date].push(e); });
+  const cats = loadCats();
+  list.innerHTML = Object.entries(grouped).map(([date,items])=>`
+    <div class="list-date-group">
+      <div class="list-date-label">${fmtDate(new Date(date+'T00:00:00'),'full')}</div>
+      ${items.map(e=>{ const idx=cats[e.type].indexOf(e.category); const color=e.type==='expense'?CAT_COLORS[idx>=0?idx%CAT_COLORS.length:0]:'var(--accent-in)';
+        return `<div class="entry-row" onclick="openEntryModal('${e.id}')">
+          <div class="entry-cat-dot" style="background:${color}"></div>
+          <div class="entry-info"><div class="entry-cat">${e.category}</div><div class="entry-memo">${e.memo||'—'}</div></div>
+          <div class="entry-right">
+            <div class="entry-amount ${e.type}">${e.type==='income'?'+':'-'}${fmt(e.amount)}원</div>
+            ${e.waste?'<div class="waste-badge">낭비</div>':''}
+          </div>
+        </div>`;}).join('')}
+    </div>`).join('');
+}
+
+function openEntryModal(id) {
+  editingEntryId = id||null;
+  const cats = loadCats();
+  if (id) {
+    const e = loadEntries().find(x=>x.id===id); if(!e) return;
+    document.getElementById('entry-modal-title').textContent='항목 수정';
+    document.getElementById('entry-btn-delete').style.display='';
+    setEntryType(e.type);
+    document.getElementById('f-date').value=e.date;
+    updateCatSelect(e.type,cats,e.category);
+    document.getElementById('f-amount').value=e.amount;
+    document.getElementById('f-memo').value=e.memo||'';
+    setWaste(e.type==='expense'&&e.waste);
+  } else {
+    document.getElementById('entry-modal-title').textContent='새 항목';
+    document.getElementById('entry-btn-delete').style.display='none';
+    setEntryType('expense');
+    document.getElementById('f-date').value=today();
+    updateCatSelect('expense',cats);
+    document.getElementById('f-amount').value='';
+    document.getElementById('f-memo').value='';
+    setWaste(false);
+  }
+  document.getElementById('entry-modal').classList.add('open');
+}
+function closeEntryModal() { document.getElementById('entry-modal').classList.remove('open'); editingEntryId=null; }
+function setEntryType(t) {
+  currentEntryType=t;
+  document.getElementById('type-expense').className=t==='expense'?'active expense':'';
+  document.getElementById('type-income').className=t==='income'?'active income':'';
+  document.getElementById('waste-check-wrap').style.display=t==='expense'?'flex':'none';
+  if(t==='income') setWaste(false);
+  updateCatSelect(t,loadCats());
+}
+function updateCatSelect(type,cats,selected) {
+  document.getElementById('f-cat').innerHTML=cats[type].map(c=>`<option value="${c}"${c===selected?' selected':''}>${c}</option>`).join('');
+}
+function toggleWaste() { const c=document.getElementById('f-waste'); c.checked=!c.checked; setWaste(c.checked); }
+function setWaste(val) {
+  document.getElementById('f-waste').checked=val;
+  document.getElementById('waste-check-wrap').className='waste-check'+(val?' checked':'');
+  document.getElementById('waste-check-box').textContent=val?'✓':'';
+}
+function saveEntry() {
+  const date=document.getElementById('f-date').value, cat=document.getElementById('f-cat').value;
+  const amount=parseInt(document.getElementById('f-amount').value,10), memo=document.getElementById('f-memo').value.trim();
+  const waste=currentEntryType==='expense'&&document.getElementById('f-waste').checked;
+  if(!date||!cat||!amount||amount<=0){alert('날짜, 카테고리, 금액을 입력해 주세요.');return;}
+  let entries=loadEntries();
+  if(editingEntryId) entries=entries.map(e=>e.id===editingEntryId?{...e,date,category:cat,amount,memo,waste}:e);
+  else entries.push({id:uid(),type:currentEntryType,date,category:cat,amount,memo,waste});
+  saveEntries(entries); closeEntryModal(); renderLedger();
+}
+function deleteEntry() {
+  if(!confirm('삭제할까요?')) return;
+  saveEntries(loadEntries().filter(e=>e.id!==editingEntryId));
+  closeEntryModal(); renderLedger();
+}
+
+// 카테고리 설정
+function openSettings() { renderSettingsLists(); document.getElementById('settings-modal').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function renderSettingsLists() {
+  const cats=loadCats();
+  ['expense','income'].forEach(type=>{
+    document.getElementById(`cat-${type}-list`).innerHTML=cats[type].map((c,i)=>`
+      <li class="cat-item"><input type="text" value="${c}" data-type="${type}" data-idx="${i}">
+      <button class="cat-del" onclick="removeCat('${type}',${i})">✕</button></li>`).join('');
+  });
+}
+function addCat(type) { const c=loadCats(); c[type].push('새 카테고리'); saveCats(c); renderSettingsLists(); }
+function removeCat(type,idx) { const c=loadCats(); if(c[type].length<=1)return; c[type].splice(idx,1); saveCats(c); renderSettingsLists(); }
+function saveSettings() {
+  const cats={expense:[],income:[]};
+  ['expense','income'].forEach(type=>{
+    document.querySelectorAll(`#cat-${type}-list input`).forEach(inp=>{ const v=inp.value.trim(); if(v) cats[type].push(v); });
+  });
+  if(!cats.expense.length||!cats.income.length){alert('카테고리를 1개 이상 유지해 주세요.');return;}
+  saveCats(cats); closeSettings(); renderLedger();
+}
+
+// ══════════════════════════════════
+// TAB 3: 예적금
+// ══════════════════════════════════
+let editingSavingsId = null;
+let currentSavingsType = 'installment';
+
+function loadSavings() { return LS.get('savings_data') || []; }
+function saveSavingsData(v) { LS.set('savings_data', v); }
+
+function renderSavings() {
+  const all = loadSavings();
+  const installment = all.filter(s=>s.stype==='installment');
+  const deposit = all.filter(s=>s.stype==='deposit');
+  renderSavingsTable('savings-installment-tbl', installment, '월 납입액');
+  renderSavingsTable('savings-deposit-tbl', deposit, '원금');
+}
+
+function renderSavingsTable(tblId, items, amtLabel) {
+  const tbl = document.getElementById(tblId);
+  if (!items.length) {
+    tbl.innerHTML=`<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-light)">내역이 없어요</td></tr>`;
+    return;
+  }
+  const totalAmt = items.reduce((s,i)=>s+(i.amount||0),0);
+  tbl.innerHTML=`
+    <thead><tr>
+      <th>상품명</th><th>은행</th><th>${amtLabel}</th><th>금리</th><th>만기일</th><th>목표</th>
+    </tr></thead>
+    <tbody>
+      ${items.map(s=>`<tr onclick="openSavingsModal('${s.id}')">
+        <td><strong>${s.name}</strong></td>
+        <td>${s.bank||'—'}</td>
+        <td>${fmt(s.amount)}원</td>
+        <td>${s.rate||0}%</td>
+        <td>${s.end||'—'} ${ddayBadge(s.end)}</td>
+        <td>${s.goal?`<span class="badge blue">${s.goal}</span>`:'—'}</td>
+      </tr>`).join('')}
+      <tr class="sum-row"><td colspan="2">합계</td><td>${fmt(totalAmt)}원</td><td colspan="3"></td></tr>
+    </tbody>`;
+}
+
+function openSavingsModal(id) {
+  editingSavingsId=id||null;
+  if(id) {
+    const s=loadSavings().find(x=>x.id===id); if(!s) return;
+    document.getElementById('savings-modal-title').textContent='예적금 수정';
+    document.getElementById('savings-btn-delete').style.display='';
+    setSavingsType(s.stype);
+    document.getElementById('s-name').value=s.name||'';
+    document.getElementById('s-bank').value=s.bank||'';
+    document.getElementById('s-amount').value=s.amount||'';
+    document.getElementById('s-rate').value=s.rate||'';
+    document.getElementById('s-start').value=s.start||'';
+    document.getElementById('s-end').value=s.end||'';
+    document.getElementById('s-goal').value=s.goal||'';
+    document.getElementById('s-memo').value=s.memo||'';
+  } else {
+    document.getElementById('savings-modal-title').textContent='예적금 추가';
+    document.getElementById('savings-btn-delete').style.display='none';
+    setSavingsType('installment');
+    ['s-name','s-bank','s-amount','s-rate','s-goal','s-memo'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('s-start').value=today();
+    document.getElementById('s-end').value='';
+  }
+  document.getElementById('savings-modal').classList.add('open');
+}
+function closeSavingsModal() { document.getElementById('savings-modal').classList.remove('open'); editingSavingsId=null; }
+function setSavingsType(t) {
+  currentSavingsType=t;
+  document.getElementById('stype-installment').className=t==='installment'?'active expense':'';
+  document.getElementById('stype-deposit').className=t==='deposit'?'active income':'';
+  document.getElementById('s-amount-label').textContent=t==='installment'?'월 납입액 (원)':'원금 (원)';
+}
+function saveSavings() {
+  const name=document.getElementById('s-name').value.trim();
+  if(!name){alert('상품명을 입력해 주세요.');return;}
+  const item={
+    id:editingSavingsId||uid(), stype:currentSavingsType,
+    name, bank:document.getElementById('s-bank').value.trim(),
+    amount:+document.getElementById('s-amount').value||0,
+    rate:+document.getElementById('s-rate').value||0,
+    start:document.getElementById('s-start').value,
+    end:document.getElementById('s-end').value,
+    goal:document.getElementById('s-goal').value.trim(),
+    memo:document.getElementById('s-memo').value.trim(),
+  };
+  let all=loadSavings();
+  if(editingSavingsId) all=all.map(s=>s.id===editingSavingsId?item:s);
+  else all.push(item);
+  saveSavingsData(all); closeSavingsModal(); renderSavings();
+}
+function deleteSavings() {
+  if(!confirm('삭제할까요?')) return;
+  saveSavingsData(loadSavings().filter(s=>s.id!==editingSavingsId));
+  closeSavingsModal(); renderSavings();
+}
+
+// ══════════════════════════════════
+// TAB 4: 대출
+// ══════════════════════════════════
+let editingLoanId = null;
+function loadLoans() { return LS.get('loan_data') || []; }
+function saveLoansData(v) { LS.set('loan_data', v); }
+
+function renderLoans() {
+  const items = loadLoans();
+  const tbl = document.getElementById('loans-tbl');
+  if(!items.length){
+    tbl.innerHTML=`<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-light)">내역이 없어요</td></tr>`;
+    return;
+  }
+  const totalBalance=items.reduce((s,i)=>s+(i.balance||0),0);
+  const totalMonthly=items.reduce((s,i)=>s+(i.monthly||0),0);
+  tbl.innerHTML=`
+    <thead><tr><th>상품명</th><th>유형</th><th>잔여원금</th><th>금리</th><th>월상환</th></tr></thead>
+    <tbody>
+      ${items.map(l=>`<tr onclick="openLoanModal('${l.id}')">
+        <td><strong>${l.name}</strong><br><span style="font-size:11px;color:var(--text-sub)">${l.repay||''}</span></td>
+        <td>${l.ltype?`<span class="badge yellow">${l.ltype}</span>`:'—'}</td>
+        <td style="color:var(--accent-out);font-weight:700">${fmt(l.balance)}원</td>
+        <td>${l.rate||0}%</td>
+        <td>${fmt(l.monthly)}원</td>
+      </tr>`).join('')}
+      <tr class="sum-row"><td colspan="2">합계</td><td>${fmt(totalBalance)}원</td><td></td><td>${fmt(totalMonthly)}원</td></tr>
+    </tbody>`;
+}
+
+function openLoanModal(id) {
+  editingLoanId=id||null;
+  if(id){
+    const l=loadLoans().find(x=>x.id===id); if(!l) return;
+    document.getElementById('loan-modal-title').textContent='대출 수정';
+    document.getElementById('loan-btn-delete').style.display='';
+    document.getElementById('l-name').value=l.name||'';
+    document.getElementById('l-type').value=l.ltype||'';
+    document.getElementById('l-principal').value=l.principal||'';
+    document.getElementById('l-balance').value=l.balance||'';
+    document.getElementById('l-rate').value=l.rate||'';
+    document.getElementById('l-monthly').value=l.monthly||'';
+    document.getElementById('l-repay').value=l.repay||'만기 일시상환';
+    document.getElementById('l-memo').value=l.memo||'';
+  } else {
+    document.getElementById('loan-modal-title').textContent='대출 추가';
+    document.getElementById('loan-btn-delete').style.display='none';
+    ['l-name','l-type','l-principal','l-balance','l-rate','l-monthly','l-memo'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('l-repay').value='만기 일시상환';
+  }
+  document.getElementById('loan-modal').classList.add('open');
+}
+function closeLoanModal() { document.getElementById('loan-modal').classList.remove('open'); editingLoanId=null; }
+function saveLoan() {
+  const name=document.getElementById('l-name').value.trim();
+  if(!name){alert('상품명을 입력해 주세요.');return;}
+  const item={
+    id:editingLoanId||uid(), name,
+    ltype:document.getElementById('l-type').value.trim(),
+    principal:+document.getElementById('l-principal').value||0,
+    balance:+document.getElementById('l-balance').value||0,
+    rate:+document.getElementById('l-rate').value||0,
+    monthly:+document.getElementById('l-monthly').value||0,
+    repay:document.getElementById('l-repay').value,
+    memo:document.getElementById('l-memo').value.trim(),
+  };
+  let all=loadLoans();
+  if(editingLoanId) all=all.map(l=>l.id===editingLoanId?item:l);
+  else all.push(item);
+  saveLoansData(all); closeLoanModal(); renderLoans();
+}
+function deleteLoan() {
+  if(!confirm('삭제할까요?')) return;
+  saveLoansData(loadLoans().filter(l=>l.id!==editingLoanId));
+  closeLoanModal(); renderLoans();
+}
+
+// ══════════════════════════════════
+// TAB 5: 투자
+// ══════════════════════════════════
+let editingInvestId = null;
+let investChart = null;
+function loadInvests() { return LS.get('invest_data') || []; }
+function saveInvestData(v) { LS.set('invest_data', v); }
+
+function renderInvest() {
+  const items = [...loadInvests()].sort((a,b)=>a.month.localeCompare(b.month));
+  const tbl = document.getElementById('invest-tbl');
+  if(!items.length){
+    tbl.innerHTML=`<tr><td colspan="3" style="padding:20px;text-align:center;color:var(--text-light)">내역이 없어요</td></tr>`;
+    const ctx2=document.getElementById('invest-chart').getContext('2d');
+    if(investChart){investChart.destroy();investChart=null;}
+    return;
+  }
+  tbl.innerHTML=`
+    <thead><tr><th>연월</th><th>총 평가금액</th><th>메모</th></tr></thead>
+    <tbody>
+      ${[...items].reverse().map(i=>`<tr onclick="openInvestModal('${i.id}')">
+        <td>${i.month}</td>
+        <td style="font-weight:700">${fmt(i.value)}원</td>
+        <td style="color:var(--text-sub);font-size:12px">${i.memo||'—'}</td>
+      </tr>`).join('')}
+    </tbody>`;
+
+  const ctx=document.getElementById('invest-chart').getContext('2d');
+  if(investChart) investChart.destroy();
+  investChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: items.map(i=>i.month),
+      datasets:[{ data:items.map(i=>i.value), borderColor:'var(--accent-in)', backgroundColor:'rgba(126,184,164,0.1)',
+        borderWidth:2, pointBackgroundColor:'var(--accent-in)', pointRadius:4, tension:0.3, fill:true }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>`${fmt(ctx.parsed.y)}원` } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:11}} },
+        y:{ grid:{color:'var(--border)'}, ticks:{ callback:v=>`${fmt(v)}원`, font:{size:11} } }
+      }
+    }
+  });
+}
+
+function openInvestModal(id) {
+  editingInvestId=id||null;
+  if(id){
+    const i=loadInvests().find(x=>x.id===id); if(!i) return;
+    document.getElementById('invest-modal-title').textContent='투자 기록 수정';
+    document.getElementById('invest-btn-delete').style.display='';
+    document.getElementById('i-month').value=i.month;
+    document.getElementById('i-value').value=i.value;
+    document.getElementById('i-memo').value=i.memo||'';
+  } else {
+    document.getElementById('invest-modal-title').textContent='월말 투자 기록';
+    document.getElementById('invest-btn-delete').style.display='none';
+    document.getElementById('i-month').value=thisMonth();
+    document.getElementById('i-value').value='';
+    document.getElementById('i-memo').value='';
+  }
+  document.getElementById('invest-modal').classList.add('open');
+}
+function closeInvestModal() { document.getElementById('invest-modal').classList.remove('open'); editingInvestId=null; }
+function saveInvest() {
+  const month=document.getElementById('i-month').value;
+  const value=+document.getElementById('i-value').value||0;
+  if(!month||!value){alert('연월과 금액을 입력해 주세요.');return;}
+  const item={id:editingInvestId||uid(),month,value,memo:document.getElementById('i-memo').value.trim()};
+  let all=loadInvests();
+  if(editingInvestId) all=all.map(i=>i.id===editingInvestId?item:i);
+  else all.push(item);
+  saveInvestData(all); closeInvestModal(); renderInvest();
+}
+function deleteInvest() {
+  if(!confirm('삭제할까요?')) return;
+  saveInvestData(loadInvests().filter(i=>i.id!==editingInvestId));
+  closeInvestModal(); renderInvest();
+}
+
+// ══════════════════════════════════
+// TAB 6: 부동산
+// ══════════════════════════════════
+let editingRealtyId = null;
+let currentRealtyType = 'current';
+function loadRealties() { return LS.get('realty_data') || []; }
+function saveRealtiesData(v) { LS.set('realty_data', v); }
+
+function renderRealty() {
+  const all=loadRealties();
+  renderRealtyTable('realty-current-tbl', all.filter(r=>r.rtype==='current'));
+  renderRealtyTable('realty-scout-tbl', all.filter(r=>r.rtype==='scout'));
+}
+function renderRealtyTable(tblId, items) {
+  const tbl=document.getElementById(tblId);
+  if(!items.length){tbl.innerHTML=`<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-light)">내역이 없어요</td></tr>`;return;}
+  tbl.innerHTML=`
+    <thead><tr><th>주소</th><th>유형</th><th>계약</th><th>보증금</th><th>평형</th></tr></thead>
+    <tbody>
+      ${items.map(r=>`<tr onclick="openRealtyModal('${r.id}')">
+        <td><strong style="font-size:12px">${r.addr||'—'}</strong>${r.memo?`<br><span style="font-size:11px;color:var(--text-sub)">${r.memo}</span>`:''}</td>
+        <td><span class="badge gray">${r.btype||'—'}</span></td>
+        <td>${r.contract||'—'}${r.monthly&&r.monthly>0?`<br><span style="font-size:11px;color:var(--text-sub)">월${fmt(r.monthly)}원</span>`:''}</td>
+        <td style="font-weight:700">${fmt(r.deposit)}원</td>
+        <td>${r.size||'—'}</td>
+      </tr>`).join('')}
+    </tbody>`;
+}
+function openRealtyModal(id) {
+  editingRealtyId=id||null;
+  if(id){
+    const r=loadRealties().find(x=>x.id===id); if(!r) return;
+    document.getElementById('realty-modal-title').textContent='부동산 수정';
+    document.getElementById('realty-btn-delete').style.display='';
+    setRealtyType(r.rtype);
+    document.getElementById('r-addr').value=r.addr||'';
+    document.getElementById('r-type').value=r.btype||'아파트';
+    document.getElementById('r-contract').value=r.contract||'전세';
+    document.getElementById('r-deposit').value=r.deposit||'';
+    document.getElementById('r-monthly').value=r.monthly||'';
+    document.getElementById('r-size').value=r.size||'';
+    document.getElementById('r-movein').value=r.movein||'';
+    document.getEl
